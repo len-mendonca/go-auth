@@ -22,10 +22,12 @@ func InitDB() {
 
 	DB, err = gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 	if err != nil {
-		log.Fatal(err)
-		return
+		panic(err)
+
 	}
 
+	if err := DB.AutoMigrate(&User{}); err != nil {
+		panic(err)
+	}
 	fmt.Println("Postgres connection successful")
-
 }
