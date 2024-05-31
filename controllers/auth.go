@@ -77,7 +77,6 @@ func Login(c *gin.Context) {
 	c.SetCookie("token", tokenString, int(expiryTime.Unix()), "/", "localhost", false, true)
 	c.JSON(200, gin.H{"success": "user logged in",
 		"data": userResp})
-	return
 
 }
 
@@ -110,7 +109,6 @@ func SignUp(c *gin.Context) {
 	models.DB.Create(&user)
 
 	c.JSON(http.StatusOK, gin.H{"success": "user created"})
-	return
 
 }
 
@@ -123,5 +121,7 @@ func Admin(c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
+	c.SetCookie("token", "", -1, "/", "localhost", false, true)
+	c.JSON(200, gin.H{"success": "user logged out"})
 
 }
