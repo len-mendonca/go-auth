@@ -2,14 +2,19 @@ package controllers
 
 import (
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/len-mendonca/go-auth/models"
 	"github.com/len-mendonca/go-auth/utils"
 )
 
 var validate *validator.Validate
+
+var secretKey = []byte(os.Getenv("JWT_KEY"))
 
 func Login(c *gin.Context) {
 	validate = validator.New()
@@ -37,14 +42,42 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	//  errHash := utils.CompareHashedPassword(user.Password,existingUser.Password);
+	success := utils.CompareHashedPassword(user.Password, existingUser.Password)
 
-	//  if(!errHash){
-	// 	c.JSON(400,gin.H{"error":"Invalid password"})
-	// 	return
-	//  }
+	if !success {
+		c.JSON(400, gin.H{"error": "Invalid password"})
+		return
+	}
 
-	//implementing jwt soon
+	userResp := models.UserResponse{
+		Name:  existingUser.Name,
+		Email: existingUser.Email,
+		Role:  existingUser.Role,
+	}
+
+	expiryTime := time.Now().Add(5 * time.Minute)
+
+	claims := &models.Claims{
+		Role: existingUser.Role,
+		StandardClaims: jwt.StandardClaims{
+			Subject:   existingUser.Email,
+			ExpiresAt: expiryTime.Unix(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString(secretKey)
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "could not generate token"})
+		return
+	}
+
+	c.SetCookie("token", tokenString, int(expiryTime.Unix()), "/", "localhost", false, true)
+	c.JSON(200, gin.H{"success": "user logged in",
+		"data": userResp})
+	return
 
 }
 
@@ -65,14 +98,14 @@ func SignUp(c *gin.Context) {
 		return
 	}
 
-	//var errHash error
+	var errHash error
 
-	//user.Password,errHash = utils.GenerateHashPassword(user.Password)
+	user.Password, errHash = utils.GenerateHashPassword(user.Password)
 
-	// if errHash != nil{
-	// 	c.JSON(500,gin.H{"error":"Something went wrong in server"})
-	// 	return
-	// }
+	if errHash != nil {
+		c.JSON(500, gin.H{"error": "Something went wrong in server"})
+		return
+	}
 
 	models.DB.Create(&user)
 
